@@ -1,0 +1,4 @@
+paths:
+  dos_df: "path/to/dos_df.csv"          # Replace with your local path
+  fuzzy_df: "path/to/fuzzy_df.csv"      # Replace with your local path
+  attack_free_df: "path/to/attack_free_df.csv"  # Replace with your local path
