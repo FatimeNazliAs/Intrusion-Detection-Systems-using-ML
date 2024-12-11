@@ -120,6 +120,166 @@ def convert_list_to_csv(data, output_file, column_names):
     df.write_csv(output_file)
 
 
+def set_new_flag_for_non_max_dlc(
+    df, max_dlc_value, existing_dlc_column_name, new_flag_column_name
+):
+    """
+    Sets new flag values for rows where `dlc` is less than the maximum value.
+
+    Parameters
+    ----------
+    df : DataFrame
+        The input dataframe.
+    max_dlc_value : int
+        The maximum value of DLC.
+    existing_dlc_column_name : str
+        Name of the column containing the current DLC values.
+    new_flag_column_name : str
+        Name of the column to store the new flag values.
+
+    Returns
+    -------
+    DataFrame
+        Updated dataframe with new flag values for non-maximum DLC rows.
+    """
+    return df.with_columns(
+        pl.when(pl.col("dlc") != max_dlc_value)
+        .then(
+            pl.when(pl.col(existing_dlc_column_name) == 0)
+            .then(pl.col("byte0"))
+            .when(pl.col(existing_dlc_column_name) == 1)
+            .then(pl.col("byte1"))
+            .when(pl.col(existing_dlc_column_name) == 2)
+            .then(pl.col("byte2"))
+            .when(pl.col(existing_dlc_column_name) == 3)
+            .then(pl.col("byte3"))
+            .when(pl.col(existing_dlc_column_name) == 4)
+            .then(pl.col("byte4"))
+            .when(pl.col(existing_dlc_column_name) == 5)
+            .then(pl.col("byte5"))
+            .when(pl.col(existing_dlc_column_name) == 6)
+            .then(pl.col("byte6"))
+            .when(pl.col(existing_dlc_column_name) == 7)
+            .then(pl.col("byte7"))
+            .otherwise(None)
+        )
+        .alias(new_flag_column_name)
+    )
+
+
+def set_byte_to_null_if_byte_contains_flag(df, existing_dlc_column_name):
+    """
+    Nullifies byte columns containing misplaced flag values.
+
+    Parameters
+    ----------
+    df : DataFrame
+        The input dataframe.
+    existing_dlc_column_name : str
+        Name of the column containing the current DLC values.
+
+    Returns
+    -------
+    DataFrame
+        Updated dataframe with nullified byte columns containing misplaced flags.
+    """
+
+    for i in range(8):
+        df = df.with_columns(
+            pl.when(pl.col(existing_dlc_column_name) == i)
+            .then(None)  # Set to null if dlc matches the byte column
+            .otherwise(pl.col(f"byte{i}"))  # Keep the original value otherwise
+            .alias(f"byte{i}")  # Update the byte column
+        )
+    return df
+
+
+def set_new_flag_for_max_dlc(
+    df,
+    max_dlc_value,
+    existing_dlc_column_name,
+    existing_flag_column_name,
+    new_flag_column_name,
+):
+    """
+    Corrects the flag column for rows where `dlc` equals the maximum value.
+
+    Parameters
+    ----------
+    df : DataFrame
+        The input dataframe.
+    max_dlc_value : int
+        The maximum value of DLC.
+    existing_dlc_column_name : str
+        Name of the column containing the current DLC values.
+    existing_flag_column_name : str
+        Name of the column containing the current flag values.
+    new_flag_column_name : str
+        Name of the column to store the corrected flag values.
+
+    Returns
+    -------
+    DataFrame
+        Updated dataframe with corrected flag values for maximum DLC rows.
+    """
+
+    return df.with_columns(
+        pl.when(pl.col(existing_dlc_column_name) == max_dlc_value)
+        .then(pl.col(existing_flag_column_name))
+        .otherwise(pl.col(new_flag_column_name))
+        .alias(new_flag_column_name)
+    )
+
+
+def drop_column(df, column_name):
+    return df.drop(column_name)
+
+
+def update_dlc_flag_association(
+    df,
+    existing_dlc_column_name,
+    existing_flag_column_name,
+    new_flag_column_name,
+):
+    """
+    Updates flag associations by handling misplaced flags and cleaning 
+    byte columns, and deleting old flag columns.
+
+    Parameters
+    ----------
+    df : DataFrame
+        The input dataframe containing byte, flag, and DLC columns.
+    max_dlc_value : int
+        The maximum value of DLC.
+    existing_dlc_column_name : str
+        Name of the column containing the current DLC values.
+    existing_flag_column_name : str
+        Name of the column containing the flag values.
+    new_flag_column_name : str
+        Name of the column to store the updated flag values.
+
+    Returns
+    -------
+    DataFrame
+        Updated dataframe with corrected flag associations.
+    """
+
+    max_dlc_value = df[existing_dlc_column_name].max()
+    df = set_new_flag_for_non_max_dlc(
+        df, max_dlc_value, existing_dlc_column_name, new_flag_column_name
+    )
+    df = set_byte_to_null_if_byte_contains_flag(df, existing_dlc_column_name)
+    df = set_new_flag_for_max_dlc(
+        df,
+        max_dlc_value,
+        existing_dlc_column_name,
+        existing_flag_column_name,
+        new_flag_column_name,
+    )
+    df = drop_column(df, existing_flag_column_name)
+    return df
+
+
 def main(
     attack_free_txt_path,
     attack_free_csv_out_path,
@@ -129,6 +289,9 @@ def main(
     fuzzy_df_out_path,
     attack_free_column_names,
     dos_and_fuzzy_column_names,
+    existing_dlc_column_name,
+    existing_flag_column_name,
+    new_flag_column_name,
 ):
     """
     Process input data and save to output paths if they don't exist.
@@ -155,18 +318,28 @@ def main(
 
     if check_file_exists(dos_df_out_path) is False:
         dos_df = set_column_names(dos_and_fuzzy_column_names, dos_df_in_path)
+        dos_df = update_dlc_flag_association(
+            dos_df,
+            existing_dlc_column_name,
+            existing_flag_column_name,
+            new_flag_column_name,
+        )
         save_df_to_output_folder(dos_df, dos_df_out_path)
     if check_file_exists(fuzzy_df_out_path) is False:
-        fuzzy_df = set_column_names(dos_and_fuzzy_column_names, 
-                                    fuzzy_df_in_path)
+        fuzzy_df = set_column_names(dos_and_fuzzy_column_names, fuzzy_df_in_path)
+        fuzzy_df = update_dlc_flag_association(
+            fuzzy_df,
+            existing_dlc_column_name,
+            existing_flag_column_name,
+            new_flag_column_name,
+        )
         save_df_to_output_folder(fuzzy_df, fuzzy_df_out_path)
     if check_file_exists(attack_free_csv_out_path) is False:
-        attack_free_data_list = convert_attack_free_txt_to_list(
-            attack_free_txt_path)
+        attack_free_data_list = convert_attack_free_txt_to_list(attack_free_txt_path)
         convert_list_to_csv(
-            attack_free_data_list, attack_free_csv_out_path, 
-            attack_free_column_names
+            attack_free_data_list, attack_free_csv_out_path, attack_free_column_names
         )
+    print("Completed Main...")
 
 
 def show_memory_usage():
@@ -203,27 +376,17 @@ if __name__ == "__main__":
         r"Intrusion-Detection-Systems-using-ML/output/fuzzy_df.csv"
     )
 
-    attack_free_column_names = ["timestamp", "canid", "frame_type", "dlc"] + [
+    attack_free_column_names = ["timestamp", "canId", "frameType", "dlc"] + [
         f"byte{i}" for i in range(8)
     ]
-    dos_and_fuzzy_column_names = [
-        "timestamp",
-        "canid",
-        "dlc",
-        "byte0",
-        "byte1",
-        "byte2",
-        "byte3",
-        "byte4",
-        "byte5",
-        "byte6",
-        "byte7",
-        "flag",
-    ]
 
-    print("polars")
-    print("before running")
-    show_memory_usage()
+    dos_and_fuzzy_column_names = (
+        ["timestamp", "canId", "dlc"] + [f"byte{i}" for i in range(8)] + ["flag"]
+    )
+    existing_dlc_column_name = "dlc"
+    existing_flag_column_name = "flag"
+    new_flag_column_name = "updatedFlag"
+
     main(
         attack_free_txt_path,
         attack_free_csv_out_path,
@@ -233,6 +396,7 @@ if __name__ == "__main__":
         fuzzy_df_out_path,
         attack_free_column_names,
         dos_and_fuzzy_column_names,
+        existing_dlc_column_name,
+        existing_flag_column_name,
+        new_flag_column_name,
     )
-    print("after running")
-    show_memory_usage()
