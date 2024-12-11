@@ -150,8 +150,8 @@ if __name__ == "__main__":
     dos_df, fuzzy_df, attack_free_df = converted_dfs
 
     dfs = [dos_df, fuzzy_df, attack_free_df]
-    new_canid_column_name = "canid_int"
-    existing_canid_column_name = "canid"
+    new_canid_column_name =  "updatedCanIdInt"
+    existing_canid_column_name = "canId"
 
     converted_dfs = convert_multiple_dfs_str_hex_canid_to_int(
         dfs, new_canid_column_name, existing_canid_column_name

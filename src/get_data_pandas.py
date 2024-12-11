@@ -199,12 +199,12 @@ if __name__ == "__main__":
         r"Intrusion-Detection-Systems-using-ML/output/fuzzy_df.csv"
     )
 
-    attack_free_column_names = ["timestamp", "canid", "frame_type", "dlc"] + [
+    attack_free_column_names = ["timestamp", "canId", "frameType", "dlc"] + [
         f"byte{i}" for i in range(8)
     ]
     dos_and_fuzzy_column_names = [
         "timestamp",
-        "canid",
+        "canId",
         "dlc",
         "byte0",
         "byte1",
