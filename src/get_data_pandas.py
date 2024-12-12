@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import psutil
+from utils import load_data_paths_from_config
 
 
 def set_column_names(column_names, df_path):
@@ -153,15 +154,12 @@ def main(
         dos_df = set_column_names(dos_and_fuzzy_column_names, dos_df_in_path)
         save_df_to_output_folder(dos_df, dos_df_out_path)
     if check_file_exists(fuzzy_df_out_path) is False:
-        fuzzy_df = set_column_names(dos_and_fuzzy_column_names, 
-                                    fuzzy_df_in_path)
+        fuzzy_df = set_column_names(dos_and_fuzzy_column_names, fuzzy_df_in_path)
         save_df_to_output_folder(fuzzy_df, fuzzy_df_out_path)
     if check_file_exists(attack_free_csv_out_path) is False:
-        attack_free_data_list = convert_attack_free_txt_to_list(
-            attack_free_txt_path)
+        attack_free_data_list = convert_attack_free_txt_to_list(attack_free_txt_path)
         convert_list_to_csv(
-            attack_free_data_list, attack_free_csv_out_path,
-            attack_free_column_names
+            attack_free_data_list, attack_free_csv_out_path, attack_free_column_names
         )
 
 
@@ -173,62 +171,31 @@ def show_memory_usage():
 
 
 if __name__ == "__main__":
-    attack_free_txt_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/input/attack_free.txt"
-    )
-    attack_free_csv_out_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/output/attack_free_df.csv"
-    )
+    dos_df_in_path, fuzzy_df_in_path, attack_free_in_path = load_data_paths_from_config
+    ("in_paths")
 
-    dos_df_in_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/input/dos_dataset.csv"
+    dos_df_out_path, fuzzy_df_out_path, attack_free_out_path = (
+        load_data_paths_from_config("out_paths")
     )
-    fuzzy_df_in_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/input/fuzzy_dataset.csv"
-    )
-    dos_df_out_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/output/dos_df.csv"
-    )
-    fuzzy_df_out_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/output/fuzzy_df.csv"
-    )
-
     attack_free_column_names = ["timestamp", "canId", "frameType", "dlc"] + [
         f"byte{i}" for i in range(8)
     ]
-    dos_and_fuzzy_column_names = [
-        "timestamp",
-        "canId",
-        "dlc",
-        "byte0",
-        "byte1",
-        "byte2",
-        "byte3",
-        "byte4",
-        "byte5",
-        "byte6",
-        "byte7",
-        "flag",
-    ]
-    process = psutil.Process()
-    print("pandas")
-    print("before running")
-    show_memory_usage()
-    main(
-        attack_free_txt_path,
-        attack_free_csv_out_path,
-        dos_df_in_path,
-        fuzzy_df_in_path,
-        dos_df_out_path,
-        fuzzy_df_out_path,
-        attack_free_column_names,
-        dos_and_fuzzy_column_names,
+    dos_and_fuzzy_column_names = (
+        ["timestamp", "canId", "dlc"] + [f"byte{i}" for i in range(8)] + ["flag"]
     )
-    print("after running")
-    show_memory_usage()
+    process = psutil.Process()
+    # print("pandas")
+    # print("before running")
+    # show_memory_usage()
+    # main(
+    #     attack_free_in_path,
+    #     attack_free_out_path,
+    #     dos_df_in_path,
+    #     fuzzy_df_in_path,
+    #     dos_df_out_path,
+    #     fuzzy_df_out_path,
+    #     attack_free_column_names,
+    #     dos_and_fuzzy_column_names,
+    # )
+    # print("after running")
+    # show_memory_usage()

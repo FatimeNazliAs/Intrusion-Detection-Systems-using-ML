@@ -1,4 +1,5 @@
 import polars as pl
+from utils import load_data_paths_from_config
 
 
 def convert_timestamp_to_datetime(df, new_column_name, existing_column_name):
@@ -123,42 +124,32 @@ def convert_multiple_dfs_str_hex_canid_to_int(
 
 
 if __name__ == "__main__":
-    dos_df_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/output/dos_df.csv"
+    
+    dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path = (
+        load_data_paths_from_config("out_paths")
     )
-    fuzzy_df_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/output/fuzzy_df.csv"
-    )
-    attack_free_df_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/output/attack_free_df.csv"
-    )
-
-    dos_df = pl.read_csv(dos_df_path)
-    fuzzy_df = pl.read_csv(fuzzy_df_path)
-    attack_free_df = pl.read_csv(attack_free_df_path)
+    dos_df = pl.read_csv(dos_df_out_path)
+    fuzzy_df = pl.read_csv(fuzzy_df_out_path)
+    attack_free_df = pl.read_csv(attack_free_csv_out_path)
 
     dfs = [dos_df, fuzzy_df, attack_free_df]
     new_timestamp_column_name = "datetime"
     existing_timestamp_column_name = "timestamp"
 
-    converted_dfs = convert_multiple_dfs_timestamp_to_datetime(
-        dfs, new_timestamp_column_name, existing_timestamp_column_name
-    )
-    dos_df, fuzzy_df, attack_free_df = converted_dfs
+    # converted_dfs = convert_multiple_dfs_timestamp_to_datetime(
+    #     dfs, new_timestamp_column_name, existing_timestamp_column_name
+    # )
+    # dos_df, fuzzy_df, attack_free_df = converted_dfs
 
-    dfs = [dos_df, fuzzy_df, attack_free_df]
-    new_canid_column_name =  "updatedCanIdInt"
-    existing_canid_column_name = "canId"
+    # dfs = [dos_df, fuzzy_df, attack_free_df]
+    # new_canid_column_name =  "updatedCanIdInt"
+    # existing_canid_column_name = "canId"
 
-    converted_dfs = convert_multiple_dfs_str_hex_canid_to_int(
-        dfs, new_canid_column_name, existing_canid_column_name
-    )
-    dos_df, fuzzy_df, attack_free_df = converted_dfs
-    print(dos_df.head())
-    print(fuzzy_df.head())
-    print(attack_free_df.head())
-
+    # converted_dfs = convert_multiple_dfs_str_hex_canid_to_int(
+    #     dfs, new_canid_column_name, existing_canid_column_name
+    # )
+    # dos_df, fuzzy_df, attack_free_df = converted_dfs
+    # print(dos_df.head())
+    # print(fuzzy_df.head())
+    # print(attack_free_df.head())
 

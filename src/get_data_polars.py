@@ -2,6 +2,7 @@ import polars as pl
 import os
 import pandas as pd
 import psutil
+from utils import load_data_paths_from_config
 
 
 def check_file_exists(file_path):
@@ -242,7 +243,7 @@ def update_dlc_flag_association(
     new_flag_column_name,
 ):
     """
-    Updates flag associations by handling misplaced flags and cleaning 
+    Updates flag associations by handling misplaced flags and cleaning
     byte columns, and deleting old flag columns.
 
     Parameters
@@ -350,30 +351,11 @@ def show_memory_usage():
 
 
 if __name__ == "__main__":
-    attack_free_txt_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/input/attack_free.txt"
-    )
-    attack_free_csv_out_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/output/attack_free_df.csv"
-    )
-
-    dos_df_in_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/input/dos_dataset.csv"
-    )
-    fuzzy_df_in_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/input/fuzzy_dataset.csv"
-    )
-    dos_df_out_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/output/dos_df.csv"
-    )
-    fuzzy_df_out_path = (
-        r"C:/Users/Naz/Documents/GitHub/Newky/IDS/"
-        r"Intrusion-Detection-Systems-using-ML/output/fuzzy_df.csv"
+    dos_df_in_path, fuzzy_df_in_path, attack_free_in_path = load_data_paths_from_config
+    ("in_paths")
+    
+    dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path = (
+        load_data_paths_from_config("out_paths")
     )
 
     attack_free_column_names = ["timestamp", "canId", "frameType", "dlc"] + [
@@ -388,7 +370,7 @@ if __name__ == "__main__":
     new_flag_column_name = "updatedFlag"
 
     main(
-        attack_free_txt_path,
+        attack_free_in_path,
         attack_free_csv_out_path,
         dos_df_in_path,
         fuzzy_df_in_path,
