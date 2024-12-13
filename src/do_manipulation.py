@@ -193,35 +193,53 @@ def convert_data_types(dfs):
     new_timestamp_column_name = "datetime"
     existing_timestamp_column_name = "timestamp"
 
+    converted_timestamp_dfs = convert_multiple_dfs_timestamp_to_datetime(
+        dfs, new_timestamp_column_name, existing_timestamp_column_name
+    )
     new_canid_column_name = "updatedCanIdInt"
     existing_canid_column_name = "canId"
 
-    dfs = convert_multiple_dfs_timestamp_to_datetime(
-        dfs, new_timestamp_column_name, existing_timestamp_column_name
+    return convert_multiple_dfs_str_hex_canid_to_int(
+        converted_timestamp_dfs, new_canid_column_name, 
+        existing_canid_column_name
     )
 
-    return convert_multiple_dfs_str_hex_canid_to_int(
-        dfs, new_canid_column_name, existing_canid_column_name
-    )
+
+def add_updated_flag_column_to_attack_free(df):
+    """
+    Adds an 'updatedFlag' column to the attack-free DataFrame, assigning 'R'
+    (representing a normal message) to all rows.
+
+    Parameters
+    ----------
+    df : pl.DataFrame
+        The input DataFrame to which the 'updatedFlag' column will be added.
+
+    Returns
+    -------
+    pl.DataFrame
+        DataFrame with newly added updatedFlag str column.
+    """
+    updated_flag = pl.Series("updatedFlag", ["R"] * len(df))
+    return df.with_columns(updated_flag)
 
 
 def add_new_features(dfs):
     existing_dlc_column_name = "dlc"
     new_message_column_name = "message"
-    return combine_multiple_dfs_bytes_to_message_column(
+    dos_df, fuzzy_df, attack_free_df = combine_multiple_dfs_bytes_to_message_column(
         dfs, existing_dlc_column_name, new_message_column_name
     )
+    attack_free_df = add_updated_flag_column_to_attack_free(attack_free_df)
+    return dos_df, fuzzy_df, attack_free_df
 
 
 if __name__ == "__main__":
 
     dos_df, fuzzy_df, attack_free_df = load_datasets()
+    converted_data_types_df = convert_data_types([dos_df, fuzzy_df, attack_free_df])
+    dos_df, fuzzy_df, attack_free_df = add_new_features(converted_data_types_df)
+    print("dos",dos_df.columns)
+    print("fuzzy",fuzzy_df.columns)
+    print("free",attack_free_df.columns)
 
-    dfs = [dos_df, fuzzy_df, attack_free_df]
-
-    dfs = convert_data_types(dfs)
-    dfs = add_new_features(dfs)
-
-    print(dos_df.head())
-    print(fuzzy_df.head())
-    print(attack_free_df.head())
