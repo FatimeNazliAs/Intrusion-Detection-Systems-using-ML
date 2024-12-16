@@ -351,8 +351,7 @@ def show_memory_usage():
 
 
 if __name__ == "__main__":
-    dos_df_in_path, fuzzy_df_in_path, attack_free_in_path = load_data_paths_from_config
-    ("in_paths")
+    dos_df_in_path, fuzzy_df_in_path, attack_free_in_path = load_data_paths_from_config("in_paths")
     
     dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path = (
         load_data_paths_from_config("out_paths")
