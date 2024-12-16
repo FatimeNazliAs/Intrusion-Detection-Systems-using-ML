@@ -200,8 +200,7 @@ def convert_data_types(dfs):
     existing_canid_column_name = "canId"
 
     return convert_multiple_dfs_str_hex_canid_to_int(
-        converted_timestamp_dfs, new_canid_column_name, 
-        existing_canid_column_name
+        converted_timestamp_dfs, new_canid_column_name, existing_canid_column_name
     )
 
 
@@ -234,12 +233,67 @@ def add_new_features(dfs):
     return dos_df, fuzzy_df, attack_free_df
 
 
+def drop_column(df, column_to_delete):
+    return df.drop(column_to_delete)
+
+
+def drop_multiple_columns(df, columns_to_delete):
+    """
+    Drop multiple columns from DataFrame
+
+    Parameters
+    ----------
+    df : pl.DataFrame
+        The input DataFrame to which the columns_to_delete will be deleted.
+
+    Returns
+    -------
+    pl.DataFrame
+        DataFrame with newly deleted columns.
+    """
+    return df.drop(columns_to_delete)
+
+
+def drop_multiple_dfs_multiple_columns(dfs, columns_to_delete):
+    """_summary_
+
+    Drop multiple columns from multiple DataFrames.
+    ----------
+    dfs : list
+        List of DataFrame.
+    columns_to_delete : list
+        Column names that will be deleted.
+
+    Returns
+    -------
+    list
+        List of updated DataFrame.
+    """
+    return [drop_multiple_columns(df, columns_to_delete) for df in dfs]
+
+
+def drop_existing_features(dfs):
+    existing_dlc_column_name = "dlc"
+    existing_frame_type_column_name = "frameType"
+    dos_df, fuzzy_df, attack_free_df = dfs
+    attack_free_df = drop_column(attack_free_df, existing_frame_type_column_name)
+    max_dlc_value_in_dfs = max([df[existing_dlc_column_name].max() for df in dfs])
+    columns_to_delete = ["timestamp", "canId"] + [
+        f"byte{i}" for i in range(max_dlc_value_in_dfs)
+    ]
+
+    return drop_multiple_dfs_multiple_columns(
+        [dos_df, fuzzy_df, attack_free_df], columns_to_delete
+    )
+
+
 if __name__ == "__main__":
 
     dos_df, fuzzy_df, attack_free_df = load_datasets()
     converted_data_types_df = convert_data_types([dos_df, fuzzy_df, attack_free_df])
     dos_df, fuzzy_df, attack_free_df = add_new_features(converted_data_types_df)
-    print("dos",dos_df.columns)
-    print("fuzzy",fuzzy_df.columns)
-    print("free",attack_free_df.columns)
+    dos_df, fuzzy_df, attack_free_df = drop_existing_features([dos_df, fuzzy_df, attack_free_df])
 
+    print("dos", dos_df.columns)
+    print("fuzzy", fuzzy_df.columns)
+    print("free", attack_free_df.columns)
