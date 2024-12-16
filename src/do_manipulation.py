@@ -2,6 +2,27 @@ import polars as pl
 from utils import load_data_paths_from_config
 
 
+def validate_column_in_dataframe(df, column_name):
+    """
+    Checks column exist or not in given df.
+
+    Parameters
+    ----------
+    df :pl.DataFrame
+        Input DataFrame.
+    column_name : str
+        Column name that will be checked.
+
+    Raises
+    ------
+    ValueError
+       If the specified column does not exist in the DataFrame.
+    """
+
+    if column_name not in df.columns:
+        raise ValueError(f"Column '{column_name}' not found in DataFrame.")
+
+
 def convert_timestamp_to_datetime(df, new_column_name, existing_column_name):
     """
     Convert float timestamp column into datetime and add as new column.
@@ -26,9 +47,7 @@ def convert_timestamp_to_datetime(df, new_column_name, existing_column_name):
         If the existing column is not found in the DataFrame.
     """
 
-    if existing_column_name not in df.columns:
-        raise ValueError
-    (f"Column '{existing_column_name}' not found in DataFrame.")
+    validate_column_in_dataframe(df, existing_column_name)
 
     return df.with_columns(
         pl.from_epoch(pl.col(existing_column_name), time_unit="s").alias(
@@ -63,7 +82,7 @@ def convert_multiple_dfs_timestamp_to_datetime(
     ]
 
 
-def convert_str_hex_to_int(df, new_column_name, existing_column_name):
+def convert_hex_column_to_int(df, new_column_name, existing_column_name):
     """
     Convert hex that it's dtype is str into int column.
 
@@ -87,10 +106,7 @@ def convert_str_hex_to_int(df, new_column_name, existing_column_name):
         If the existing column is not found in the DataFrame.
     """
 
-    if existing_column_name not in df.columns:
-        raise ValueError
-    (f"Column '{existing_column_name}' not found in DataFrame.")
-
+    validate_column_in_dataframe(df, existing_column_name)
     return df.with_columns(
         pl.col(existing_column_name)
         .str.to_integer(base=16, strict=True)
@@ -119,11 +135,11 @@ def convert_multiple_dfs_str_hex_canid_to_int(
         List of updated DataFrame.
     """
     return [
-        convert_str_hex_to_int(df, new_column_name, existing_column_name) for df in dfs
+        convert_hex_column_to_int(df, new_column_name, existing_column_name) for df in dfs
     ]
 
 
-def combine_byte_columns_to_message_column(df, existing_column_name, new_column_name):
+def merge_byte_columns(df, existing_column_name, new_column_name):
     """
     Combine byte0...byte7 columns that represent message parts to one column which directly name is message.
 
@@ -141,15 +157,20 @@ def combine_byte_columns_to_message_column(df, existing_column_name, new_column_
         DataFrame with newly added message str column.
     """
 
+    byte_columns = [f"byte{i}" for i in range(df[existing_column_name].max())]
+    missing_columns = [col for col in byte_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"Missing byte columns: {missing_columns}")
+    
     return df.with_columns(
         pl.concat_str(
-            [f"byte{i}" for i in range(df[existing_column_name].max())],
+            byte_columns,
             ignore_nulls=True,
         ).alias(new_column_name)
     )
 
 
-def combine_multiple_dfs_bytes_to_message_column(
+def merge_multiple_dfs_bytes_to_message_column(
     dfs, existing_column_name, new_column_name
 ):
     """
@@ -170,7 +191,7 @@ def combine_multiple_dfs_bytes_to_message_column(
         List of updated DataFrame.
     """
     return [
-        combine_byte_columns_to_message_column(
+        merge_byte_columns(
             df, existing_column_name, new_column_name
         )
         for df in dfs
@@ -226,7 +247,7 @@ def add_updated_flag_column_to_attack_free(df):
 def add_new_features(dfs):
     existing_dlc_column_name = "dlc"
     new_message_column_name = "message"
-    dos_df, fuzzy_df, attack_free_df = combine_multiple_dfs_bytes_to_message_column(
+    dos_df, fuzzy_df, attack_free_df = merge_multiple_dfs_bytes_to_message_column(
         dfs, existing_dlc_column_name, new_message_column_name
     )
     attack_free_df = add_updated_flag_column_to_attack_free(attack_free_df)
@@ -271,17 +292,18 @@ def drop_multiple_dfs_multiple_columns(dfs, columns_to_delete):
     """
     return [drop_multiple_columns(df, columns_to_delete) for df in dfs]
 
+def get_byte_column_names(dfs, dlc_column):
+    max_dlc_value = max([df[dlc_column].max() for df in dfs])
+    return [f"byte{i}" for i in range(max_dlc_value)]
+
 
 def drop_existing_features(dfs):
     existing_dlc_column_name = "dlc"
     existing_frame_type_column_name = "frameType"
     dos_df, fuzzy_df, attack_free_df = dfs
-    attack_free_df = drop_column(attack_free_df, existing_frame_type_column_name)
-    max_dlc_value_in_dfs = max([df[existing_dlc_column_name].max() for df in dfs])
-    columns_to_delete = ["timestamp", "canId"] + [
-        f"byte{i}" for i in range(max_dlc_value_in_dfs)
-    ]
-
+    byte_columns = get_byte_column_names(dfs, existing_dlc_column_name)
+    columns_to_delete = ["timestamp", "canId"] + byte_columns
+    attack_free_df = drop_column(attack_free_df, existing_frame_type_column_name)    
     return drop_multiple_dfs_multiple_columns(
         [dos_df, fuzzy_df, attack_free_df], columns_to_delete
     )
@@ -292,7 +314,9 @@ if __name__ == "__main__":
     dos_df, fuzzy_df, attack_free_df = load_datasets()
     converted_data_types_df = convert_data_types([dos_df, fuzzy_df, attack_free_df])
     dos_df, fuzzy_df, attack_free_df = add_new_features(converted_data_types_df)
-    dos_df, fuzzy_df, attack_free_df = drop_existing_features([dos_df, fuzzy_df, attack_free_df])
+    dos_df, fuzzy_df, attack_free_df = drop_existing_features(
+        [dos_df, fuzzy_df, attack_free_df]
+    )
 
     print("dos", dos_df.columns)
     print("fuzzy", fuzzy_df.columns)
