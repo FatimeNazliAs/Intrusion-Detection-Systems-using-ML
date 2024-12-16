@@ -135,7 +135,8 @@ def convert_multiple_dfs_str_hex_canid_to_int(
         List of updated DataFrame.
     """
     return [
-        convert_hex_column_to_int(df, new_column_name, existing_column_name) for df in dfs
+        convert_hex_column_to_int(df, new_column_name, existing_column_name)
+        for df in dfs
     ]
 
 
@@ -161,7 +162,7 @@ def merge_byte_columns(df, existing_column_name, new_column_name):
     missing_columns = [col for col in byte_columns if col not in df.columns]
     if missing_columns:
         raise ValueError(f"Missing byte columns: {missing_columns}")
-    
+
     return df.with_columns(
         pl.concat_str(
             byte_columns,
@@ -190,18 +191,10 @@ def merge_multiple_dfs_bytes_to_message_column(
     list
         List of updated DataFrame.
     """
-    return [
-        merge_byte_columns(
-            df, existing_column_name, new_column_name
-        )
-        for df in dfs
-    ]
+    return [merge_byte_columns(df, existing_column_name, new_column_name) for df in dfs]
 
 
-def load_datasets():
-    dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path = (
-        load_data_paths_from_config("out_paths")
-    )
+def load_datasets(dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path):
 
     dos_df = pl.read_csv(dos_df_out_path)
     fuzzy_df = pl.read_csv(fuzzy_df_out_path)
@@ -217,7 +210,7 @@ def convert_data_types(dfs):
     converted_timestamp_dfs = convert_multiple_dfs_timestamp_to_datetime(
         dfs, new_timestamp_column_name, existing_timestamp_column_name
     )
-    new_canid_column_name = "updatedCanIdInt"
+    new_canid_column_name = "updatedCanId"
     existing_canid_column_name = "canId"
 
     return convert_multiple_dfs_str_hex_canid_to_int(
@@ -292,6 +285,7 @@ def drop_multiple_dfs_multiple_columns(dfs, columns_to_delete):
     """
     return [drop_multiple_columns(df, columns_to_delete) for df in dfs]
 
+
 def get_byte_column_names(dfs, dlc_column):
     max_dlc_value = max([df[dlc_column].max() for df in dfs])
     return [f"byte{i}" for i in range(max_dlc_value)]
@@ -303,20 +297,67 @@ def drop_existing_features(dfs):
     dos_df, fuzzy_df, attack_free_df = dfs
     byte_columns = get_byte_column_names(dfs, existing_dlc_column_name)
     columns_to_delete = ["timestamp", "canId"] + byte_columns
-    attack_free_df = drop_column(attack_free_df, existing_frame_type_column_name)    
+    attack_free_df = drop_column(attack_free_df, existing_frame_type_column_name)
     return drop_multiple_dfs_multiple_columns(
         [dos_df, fuzzy_df, attack_free_df], columns_to_delete
     )
 
 
-if __name__ == "__main__":
+def swap_features_in_specific_order(dfs,specific_order):
+    """
+    Reorders the features (columns) of each DataFrame in the input list to match a specific order.
 
-    dos_df, fuzzy_df, attack_free_df = load_datasets()
+    Parameters
+    ----------
+    dfs : list of pl.DataFrame
+        A list of DataFrame objects whose columns need to be reordered.
+    specific_order : list of str
+        A list specifying the desired column order
+
+    Returns
+    -------
+    list
+        A list of DataFrames, each with columns reordered to match the `specific_order`.
+    """
+    return [
+    df.select(specific_order)
+    for df in dfs
+    ]
+
+
+def save_df_to_output_folder(df, df_out_path):
+    """
+    Save DataFrame to a specified output folder
+
+    Parameters
+    ----------
+    df : pl.DataFrame
+        DataFrame to be saved
+
+    df_out_path :str
+        Path to save the DataFrame
+    """
+    df.write_csv(df_out_path)
+
+
+if __name__ == "__main__":
+    dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path = (
+        load_data_paths_from_config("out_paths")
+    )
+
+    dos_df, fuzzy_df, attack_free_df = load_datasets(dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path)
     converted_data_types_df = convert_data_types([dos_df, fuzzy_df, attack_free_df])
     dos_df, fuzzy_df, attack_free_df = add_new_features(converted_data_types_df)
     dos_df, fuzzy_df, attack_free_df = drop_existing_features(
         [dos_df, fuzzy_df, attack_free_df]
     )
+    dos_df,fuzzy_df,attack_free_df=swap_features_in_specific_order(
+        [dos_df,fuzzy_df,attack_free_df],
+        ['datetime', 'updatedCanId','dlc', 'message', 'updatedFlag'])
+
+    save_df_to_output_folder(dos_df, dos_df_out_path)
+    save_df_to_output_folder(fuzzy_df, fuzzy_df_out_path)
+    save_df_to_output_folder(attack_free_df, attack_free_csv_out_path)
 
     print("dos", dos_df.columns)
     print("fuzzy", fuzzy_df.columns)
