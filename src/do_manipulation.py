@@ -318,11 +318,13 @@ def add_updated_flag_column_to_attack_free(df):
 
 
 def add_new_features(dfs):
-    existing_dlc_column_name = "dlc"
-    new_message_column_name = "message"
-    dos_df, fuzzy_df, attack_free_df = merge_multiple_dfs_bytes_to_message_column(
-        dfs, existing_dlc_column_name, new_message_column_name
-    )
+    # existing_dlc_column_name = "dlc"
+    # new_message_column_name = "message"
+    # dos_df, fuzzy_df, attack_free_df = merge_multiple_dfs_bytes_to_message_column(
+    #     dfs, existing_dlc_column_name, new_message_column_name
+    # )
+
+    dos_df, fuzzy_df, attack_free_df = dfs
     attack_free_df = add_updated_flag_column_to_attack_free(attack_free_df)
     return dos_df, fuzzy_df, attack_free_df
 
@@ -402,6 +404,61 @@ def swap_features_in_specific_order(dfs, specific_order):
     return [df.select(specific_order) for df in dfs]
 
 
+def encode_updated_flag_column(df, existing_flag_column_name):
+    """
+    Encode the updated flag column where 'R' represents normal messages (0)
+    and 'T' represents injected messages (1).
+
+    Parameters
+    ----------
+    df : pl.DataFrame
+        The input DataFrame.
+    existing_flag_column_name : str
+        Name of the column to be encoded.
+
+    Returns
+    -------
+    pl.DataFrame
+        DataFrame with the encoded flag column.
+    """
+    return df.with_columns(
+        pl.when(pl.col(existing_flag_column_name) == "R")
+        .then(0)
+        .when(pl.col(existing_flag_column_name) == "T")
+        .then(1)
+        .otherwise(-1)  # Fallback for unexpected values
+        .alias(existing_flag_column_name)
+    )
+
+
+def encode_multiple_dfs_updated_flag_column(dfs, existing_column_name):
+    """
+    Encode the updated flag column in multiple DataFrames.
+
+    This function applies the `encode_updated_flag_column` method to a list of DataFrames,
+    encoding the specified column where 'R' represents normal messages (0) and 'T'
+    represents injected messages (1).
+
+    Parameters
+    ----------
+    dfs : list of pl.DataFrame
+        A list of input DataFrames containing the column to be encoded.
+    existing_column_name : str
+        The name of the column to encode in each DataFrame.
+
+    Returns
+    -------
+    list of pl.DataFrame
+        A list of DataFrames with the specified column encoded.
+    """
+    return [encode_updated_flag_column(df, existing_column_name) for df in dfs]
+
+
+def encode_features(dfs):
+    existing_flag_column_name = "updatedFlag"
+    return encode_multiple_dfs_updated_flag_column(dfs, existing_flag_column_name)
+
+
 def save_df_to_output_folder(df, df_out_path):
     """
     Save DataFrame to a specified output folder
@@ -430,21 +487,19 @@ if __name__ == "__main__":
     dos_df, fuzzy_df, attack_free_df = drop_existing_features(
         [dos_df, fuzzy_df, attack_free_df]
     )
-    max_dlc_number = max(
-        [
-            df["dlc"].max()
-            for df in [dos_df, fuzzy_df, attack_free_df]
-        ]
-    )
+    max_dlc_number = max([df["dlc"].max() for df in [dos_df, fuzzy_df, attack_free_df]])
     specific_order = (
-        ["dlc", "datetime", "updatedCanId"]
+        ["updatedCanId","datetime","dlc"]
         + [f"updatedByte{i}" for i in range(max_dlc_number)]
-        + ["message", "updatedFlag"]
+        + ["updatedFlag"]
     )
 
     dos_df, fuzzy_df, attack_free_df = swap_features_in_specific_order(
         [dos_df, fuzzy_df, attack_free_df],
         specific_order,
+    )
+    dos_df, fuzzy_df, attack_free_df = encode_features(
+        [dos_df, fuzzy_df, attack_free_df]
     )
 
     save_df_to_output_folder(dos_df, dos_df_out_path)
@@ -452,6 +507,6 @@ if __name__ == "__main__":
     save_df_to_output_folder(attack_free_df, attack_free_csv_out_path)
     print("Completed DataFrame Manipulation ...")
 
-    print("dos", dos_df.columns)
-    print("fuzzy", fuzzy_df.columns)
-    print("free", attack_free_df.columns)
+    # print("dos", dos_df.columns)
+    # print("fuzzy", fuzzy_df.columns)
+    # print("free", attack_free_df.columns)
