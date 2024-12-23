@@ -140,6 +140,76 @@ def convert_multiple_dfs_str_hex_canid_to_int(
     ]
 
 
+def convert_bytes_to_int(df, existing_byte_column_names, new_byte_column_names):
+    """
+    Convert byte columns in hexadecimal format to integer columns.
+
+    Parameters
+    ----------
+    df : pl.DataFrame
+        The input DataFrame containing the byte columns.
+    existing_byte_column_names : list of str
+        List of names of the existing byte columns in hexadecimal format.
+    new_byte_column_names : list of str
+        List of names for the new columns to store the converted integer values.
+
+    Returns
+    -------
+    pl.DataFrame
+        A DataFrame with the newly added integer columns corresponding to the byte columns.
+
+    Raises
+    ------
+    ValueError
+        If the lengths of `existing_byte_column_names` and `new_byte_column_names` do not match.
+    """
+
+    if len(existing_byte_column_names) != len(new_byte_column_names):
+        raise ValueError(
+            "The lengths of existing_column_names and new_column_names must match."
+        )
+
+    column_names_dict = dict(zip(existing_byte_column_names, new_byte_column_names))
+    for existing_byte_column_name, new_byte_column_name in column_names_dict.items():
+        df = df.with_columns(
+            pl.col(existing_byte_column_name)
+            .str.to_integer(base=16, strict=True)
+            .alias(new_byte_column_name)
+        )
+    return df
+
+
+def convert_multiple_dfs_bytes_to_int(dfs, existing_column_names, new_column_names):
+    """
+    Convert byte columns in hexadecimal format to integer columns for multiple DataFrames.
+
+    This function applies the `convert_bytes_to_int` function to a list of DataFrames,
+    transforming specified byte columns in hexadecimal format into integer columns.
+
+    Parameters
+    ----------
+    dfs : list of pl.DataFrame
+        A list of DataFrames, each containing the byte columns to be converted.
+    existing_column_names : list of str
+        List of names of the existing byte columns in each DataFrame.
+    new_column_names : list of str
+        List of names for the new columns to store the converted integer values in each DataFrame.
+
+    Returns
+    -------
+    list of pl.DataFrame
+        A list of DataFrames with the newly added integer columns corresponding to the byte columns.
+
+    Raises
+    ------
+    ValueError
+        If the lengths of `existing_column_names` and `new_column_names` do not match.
+    """
+    return [
+        convert_bytes_to_int(df, existing_column_names, new_column_names) for df in dfs
+    ]
+
+
 def merge_byte_columns(df, existing_column_name, new_column_name):
     """
     Combine byte0...byte7 columns that represent message parts to one column which directly name is message.
@@ -212,9 +282,19 @@ def convert_data_types(dfs):
     )
     new_canid_column_name = "updatedCanId"
     existing_canid_column_name = "canId"
-
-    return convert_multiple_dfs_str_hex_canid_to_int(
+    converted_canid_dfs = convert_multiple_dfs_str_hex_canid_to_int(
         converted_timestamp_dfs, new_canid_column_name, existing_canid_column_name
+    )
+    existing_dlc_column_name = "dlc"
+    max_dlc_number = max([df[existing_dlc_column_name].max() for df in dfs])
+
+    existing_byte_column_names = [f"byte{i}" for i in range(max_dlc_number)]
+    new_byte_column_names = [
+        f"updatedByte{i}" for i in range(dos_df[existing_dlc_column_name].max())
+    ]
+
+    return convert_multiple_dfs_bytes_to_int(
+        converted_canid_dfs, existing_byte_column_names, new_byte_column_names
     )
 
 
@@ -303,7 +383,7 @@ def drop_existing_features(dfs):
     )
 
 
-def swap_features_in_specific_order(dfs,specific_order):
+def swap_features_in_specific_order(dfs, specific_order):
     """
     Reorders the features (columns) of each DataFrame in the input list to match a specific order.
 
@@ -319,10 +399,7 @@ def swap_features_in_specific_order(dfs,specific_order):
     list
         A list of DataFrames, each with columns reordered to match the `specific_order`.
     """
-    return [
-    df.select(specific_order)
-    for df in dfs
-    ]
+    return [df.select(specific_order) for df in dfs]
 
 
 def save_df_to_output_folder(df, df_out_path):
@@ -345,19 +422,35 @@ if __name__ == "__main__":
         load_data_paths_from_config("out_paths")
     )
 
-    dos_df, fuzzy_df, attack_free_df = load_datasets(dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path)
+    dos_df, fuzzy_df, attack_free_df = load_datasets(
+        dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path
+    )
     converted_data_types_df = convert_data_types([dos_df, fuzzy_df, attack_free_df])
     dos_df, fuzzy_df, attack_free_df = add_new_features(converted_data_types_df)
     dos_df, fuzzy_df, attack_free_df = drop_existing_features(
         [dos_df, fuzzy_df, attack_free_df]
     )
-    dos_df,fuzzy_df,attack_free_df=swap_features_in_specific_order(
-        [dos_df,fuzzy_df,attack_free_df],
-        ['datetime', 'updatedCanId','dlc', 'message', 'updatedFlag'])
+    max_dlc_number = max(
+        [
+            df["dlc"].max()
+            for df in [dos_df, fuzzy_df, attack_free_df]
+        ]
+    )
+    specific_order = (
+        ["dlc", "datetime", "updatedCanId"]
+        + [f"updatedByte{i}" for i in range(max_dlc_number)]
+        + ["message", "updatedFlag"]
+    )
+
+    dos_df, fuzzy_df, attack_free_df = swap_features_in_specific_order(
+        [dos_df, fuzzy_df, attack_free_df],
+        specific_order,
+    )
 
     save_df_to_output_folder(dos_df, dos_df_out_path)
     save_df_to_output_folder(fuzzy_df, fuzzy_df_out_path)
     save_df_to_output_folder(attack_free_df, attack_free_csv_out_path)
+    print("Completed DataFrame Manipulation ...")
 
     print("dos", dos_df.columns)
     print("fuzzy", fuzzy_df.columns)
