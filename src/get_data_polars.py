@@ -318,7 +318,6 @@ def main(
     """
 
     if check_file_exists(dos_df_out_path) is False:
-        start=time.time()
         dos_df = set_column_names(dos_and_fuzzy_column_names, dos_df_in_path)
         dos_df = update_dlc_flag_association(
             dos_df,
@@ -327,8 +326,7 @@ def main(
             new_flag_column_name,
         )
         save_df_to_output_folder(dos_df, dos_df_out_path)
-        end=time.time()
-        print(end-start)
+
     if check_file_exists(fuzzy_df_out_path) is False:
         fuzzy_df = set_column_names(dos_and_fuzzy_column_names, fuzzy_df_in_path)
         fuzzy_df = update_dlc_flag_association(
@@ -339,17 +337,11 @@ def main(
         )
         save_df_to_output_folder(fuzzy_df, fuzzy_df_out_path)
     if check_file_exists(attack_free_csv_out_path) is False:
-        start=time.time()
         attack_free_data_list = convert_attack_free_txt_to_list(attack_free_txt_path)
-        end=time.time()
-        print(end-start)
-        start=time.time()
         convert_list_to_csv(
             attack_free_data_list, attack_free_csv_out_path, attack_free_column_names
         )
-        end=time.time()
-        print(end-start)
-    print("Completed Main...")
+    print("Completed DataFrame Construction with Polars...")
 
 
 def show_memory_usage():
