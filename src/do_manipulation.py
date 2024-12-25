@@ -23,6 +23,7 @@ def validate_column_in_dataframe(df, column_name):
         raise ValueError(f"Column '{column_name}' not found in DataFrame.")
 
 
+
 def convert_timestamp_to_datetime(df, new_column_name, existing_column_name):
     """
     Convert float timestamp column into datetime and add as new column.
@@ -48,13 +49,13 @@ def convert_timestamp_to_datetime(df, new_column_name, existing_column_name):
     """
 
     validate_column_in_dataframe(df, existing_column_name)
-
-    return df.with_columns(
+    df=df.with_columns(
         pl.from_epoch(pl.col(existing_column_name), time_unit="s").alias(
             new_column_name
         )
     )
-
+    # print(df[new_column_name].head())
+    return df
 
 def convert_multiple_dfs_timestamp_to_datetime(
     dfs, new_column_name, existing_column_name
@@ -478,12 +479,16 @@ if __name__ == "__main__":
     dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path = (
         load_data_paths_from_config("out_paths")
     )
+    print("Loading datasets.")
 
     dos_df, fuzzy_df, attack_free_df = load_datasets(
         dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path
     )
+    print("Converting data types.")
     converted_data_types_df = convert_data_types([dos_df, fuzzy_df, attack_free_df])
+    print("Adding new features")
     dos_df, fuzzy_df, attack_free_df = add_new_features(converted_data_types_df)
+    print("Dropping unneseccary features")
     dos_df, fuzzy_df, attack_free_df = drop_existing_features(
         [dos_df, fuzzy_df, attack_free_df]
     )
@@ -493,11 +498,12 @@ if __name__ == "__main__":
         + [f"updatedByte{i}" for i in range(max_dlc_number)]
         + ["updatedFlag"]
     )
-
+    print("Swapping feature orders.")
     dos_df, fuzzy_df, attack_free_df = swap_features_in_specific_order(
         [dos_df, fuzzy_df, attack_free_df],
         specific_order,
     )
+    print("Encoding features.")
     dos_df, fuzzy_df, attack_free_df = encode_features(
         [dos_df, fuzzy_df, attack_free_df]
     )
@@ -505,8 +511,6 @@ if __name__ == "__main__":
     save_df_to_output_folder(dos_df, dos_df_out_path)
     save_df_to_output_folder(fuzzy_df, fuzzy_df_out_path)
     save_df_to_output_folder(attack_free_df, attack_free_csv_out_path)
-    print("Completed DataFrame Manipulation ...")
+    print("DataFrame Manipulation completed!")
 
-    # print("dos", dos_df.columns)
-    # print("fuzzy", fuzzy_df.columns)
-    # print("free", attack_free_df.columns)
+    

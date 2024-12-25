@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import psutil
 from utils import load_data_paths_from_config
-import time
+
 
 def check_file_exists(file_path):
     """
@@ -19,9 +19,7 @@ def check_file_exists(file_path):
     Boolean
         True if the file exists, False otherwise.
     """
-    if os.path.isfile(file_path):
-        return True
-    return False
+    return os.path.isfile(file_path)
 
 
 def set_column_names(column_names, df_path):
@@ -57,7 +55,11 @@ def save_df_to_output_folder(df, df_out_path):
     df_out_path :str
         Path to save the DataFrame
     """
-    df.write_csv(df_out_path)
+    try:
+        df.write_csv(df_out_path)
+        print(f"DataFrame successfully saved to {df_out_path}")
+    except Exception as e:
+        print(f"Failed to save DataFrame to {df_out_path}: {e}")
 
 
 def convert_attack_free_txt_to_list(input_file):
@@ -74,27 +76,31 @@ def convert_attack_free_txt_to_list(input_file):
     list
         Extracted data structured for CSV conversion.
     """
-    with open(input_file, "r") as file:
-        lines = file.readlines()
     data = []
-    for line in lines:
-        if line.strip():
-            if line.startswith("Timestamp:"):
-                # Parse lines starting with "Timestamp"
-                parts = line.split()
-                if len(parts) >= 8:
-                    # The check ensures the line contains all these expected
-                    # parts, preventing errors when trying to access specific
-                    # elements in the list.
-                    timestamp = parts[1]
-                    id_value = parts[3]
-                    frame_type = parts[4]
-                    dlc = parts[6]
-                    bytes_data = parts[7:]
-                    row = [timestamp, id_value, frame_type, dlc] + bytes_data
-                    data.append(row)
-                else:
-                    continue
+    try:
+        with open(input_file, "r") as file:
+            lines = file.readlines()
+        for line in lines:
+            if line.strip():
+                if line.startswith("Timestamp:"):
+                    # Parse lines starting with "Timestamp"
+                    parts = line.split()
+                    if len(parts) >= 8:
+                        # The check ensures the line contains all these expected
+                        # parts, preventing errors when trying to access specific
+                        # elements in the list.
+                        timestamp = parts[1]
+                        id_value = parts[3]
+                        frame_type = parts[4]
+                        dlc = parts[6]
+                        bytes_data = parts[7:]
+                        row = [timestamp, id_value, frame_type, dlc] + bytes_data
+                        data.append(row)
+
+    except FileNotFoundError:
+        print(f"Error: File not found at {input_file}")
+    except Exception as e:
+        print(f"Error reading file {input_file}: {e}")
     return data
 
 
@@ -185,14 +191,15 @@ def set_byte_to_null_if_byte_contains_flag(df, existing_dlc_column_name):
         Updated dataframe with nullified byte columns containing misplaced flags.
     """
 
-    for i in range(8):
-        df = df.with_columns(
+    return df.with_columns(
+        [
             pl.when(pl.col(existing_dlc_column_name) == i)
             .then(None)  # Set to null if dlc matches the byte column
             .otherwise(pl.col(f"byte{i}"))  # Keep the original value otherwise
-            .alias(f"byte{i}")  # Update the byte column
-        )
-    return df
+            .alias(f"byte{i}")
+            for i in range(df[existing_dlc_column_name].max())  # Update the byte column
+        ]
+    )
 
 
 def set_new_flag_for_max_dlc(
@@ -316,8 +323,9 @@ def main(
     dos_and_fuzzy_column_names : list of str
         Column names for the DOS and fuzzy data.
     """
-
+    print("Starting DataFrame processing...")
     if check_file_exists(dos_df_out_path) is False:
+        print("Processing DoS DataFrame...")
         dos_df = set_column_names(dos_and_fuzzy_column_names, dos_df_in_path)
         dos_df = update_dlc_flag_association(
             dos_df,
@@ -328,6 +336,7 @@ def main(
         save_df_to_output_folder(dos_df, dos_df_out_path)
 
     if check_file_exists(fuzzy_df_out_path) is False:
+        print("Processing Fuzzy DataFrame...")
         fuzzy_df = set_column_names(dos_and_fuzzy_column_names, fuzzy_df_in_path)
         fuzzy_df = update_dlc_flag_association(
             fuzzy_df,
@@ -337,11 +346,12 @@ def main(
         )
         save_df_to_output_folder(fuzzy_df, fuzzy_df_out_path)
     if check_file_exists(attack_free_csv_out_path) is False:
+        print("Processing Attack-Free Data...")
         attack_free_data_list = convert_attack_free_txt_to_list(attack_free_txt_path)
         convert_list_to_csv(
             attack_free_data_list, attack_free_csv_out_path, attack_free_column_names
         )
-    print("Completed DataFrame Construction with Polars...")
+    print("DataFrame processing completed!")
 
 
 def show_memory_usage():
@@ -352,8 +362,10 @@ def show_memory_usage():
 
 
 if __name__ == "__main__":
-    dos_df_in_path, fuzzy_df_in_path, attack_free_in_path = load_data_paths_from_config("in_paths")
-    
+    dos_df_in_path, fuzzy_df_in_path, attack_free_in_path = load_data_paths_from_config(
+        "in_paths"
+    )
+
     dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path = (
         load_data_paths_from_config("out_paths")
     )
