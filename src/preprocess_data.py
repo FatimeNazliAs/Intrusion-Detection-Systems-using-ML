@@ -1,5 +1,5 @@
 import polars as pl
-from utils import load_data_paths_from_config
+from utils import load_data_paths, load_datasets_with_pl
 
 
 def validate_column_in_dataframe(df, column_name):
@@ -274,6 +274,20 @@ def load_datasets(dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path):
 
 
 def convert_data_types(dfs):
+    """
+    Convert some columns into another formats such as timestamp to datetime, string canid in hex format into int canid,
+    bytes columns which is in string hex to int byte columns.
+
+    Parameters
+    ----------
+    dfs : list
+        List of DataFrame.
+
+    Returns
+    -------
+    list
+        List of updated DataFrames.
+    """
 
     new_timestamp_column_name = "datetime"
     existing_timestamp_column_name = "timestamp"
@@ -318,12 +332,20 @@ def add_updated_flag_column_to_attack_free(df):
     return df.with_columns(updated_flag)
 
 
-def add_new_features(dfs):
-    # existing_dlc_column_name = "dlc"
-    # new_message_column_name = "message"
-    # dos_df, fuzzy_df, attack_free_df = merge_multiple_dfs_bytes_to_message_column(
-    #     dfs, existing_dlc_column_name, new_message_column_name
-    # )
+def add_features(dfs):
+    """
+    Add updatedFlag column into Attack Free dataset as R which indicates normal message.
+
+    Parameters
+    ----------
+    dfs : List
+        List of DataFrame.
+
+    Returns
+    -------
+    List
+        List of updated DataFrame.
+    """
 
     dos_df, fuzzy_df, attack_free_df = dfs
     attack_free_df = add_updated_flag_column_to_attack_free(attack_free_df)
@@ -374,10 +396,25 @@ def get_byte_column_names(dfs, dlc_column):
     return [f"byte{i}" for i in range(max_dlc_value)]
 
 
-def drop_existing_features(dfs):
+def drop_features(dfs):
+    """
+    Drop features that are no longer needed such as timestamp, canid, 
+    byte0 to byte7 columns because they are converted into different formats.
+
+    Parameters
+    ----------
+    dfs : List
+        List of DataFrame
+
+    Returns
+    -------
+    List
+        List of updated DataFrame
+    """
     existing_dlc_column_name = "dlc"
     existing_frame_type_column_name = "frameType"
     dos_df, fuzzy_df, attack_free_df = dfs
+
     byte_columns = get_byte_column_names(dfs, existing_dlc_column_name)
     columns_to_delete = ["timestamp", "canId"] + byte_columns
     attack_free_df = drop_column(attack_free_df, existing_frame_type_column_name)
@@ -476,21 +513,22 @@ def save_df_to_output_folder(df, df_out_path):
 
 
 if __name__ == "__main__":
+
     print("Loading dataset paths.")
-    dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path = (
-        load_data_paths_from_config("out_paths")
+    dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path = load_data_paths(
+        "out_paths"
     )
     print("Loading datasets.")
+    dos_df, fuzzy_df, attack_free_df = load_datasets_with_pl()
 
-    dos_df, fuzzy_df, attack_free_df = load_datasets(
-        dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path
-    )
     print("Converting data types.")
-    converted_data_types_df = convert_data_types([dos_df, fuzzy_df, attack_free_df])
+    converted_data_types_dfs = convert_data_types([dos_df, fuzzy_df, attack_free_df])
+    
     print("Adding new features")
-    dos_df, fuzzy_df, attack_free_df = add_new_features(converted_data_types_df)
-    print("Dropping unneseccary features")
-    dos_df, fuzzy_df, attack_free_df = drop_existing_features(
+    dos_df, fuzzy_df, attack_free_df = add_features(converted_data_types_dfs)
+
+    print("Dropping unused features")
+    dos_df, fuzzy_df, attack_free_df = drop_features(
         [dos_df, fuzzy_df, attack_free_df]
     )
     max_dlc_number = max([df["dlc"].max() for df in [dos_df, fuzzy_df, attack_free_df]])
@@ -512,4 +550,4 @@ if __name__ == "__main__":
     save_df_to_output_folder(dos_df, dos_df_out_path)
     save_df_to_output_folder(fuzzy_df, fuzzy_df_out_path)
     save_df_to_output_folder(attack_free_df, attack_free_csv_out_path)
-    print("DataFrame Manipulation completed!")
+    print("DataFrame Preprocessing Completed and Saved into Output Folder!")

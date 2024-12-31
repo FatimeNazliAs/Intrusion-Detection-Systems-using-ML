@@ -183,10 +183,8 @@ if __name__ == "__main__":
     dos_and_fuzzy_column_names = (
         ["timestamp", "canId", "dlc"] + [f"byte{i}" for i in range(8)] + ["flag"]
     )
-    process = psutil.Process()
-    # print("pandas")
-    # print("before running")
-    # show_memory_usage()
+
+
     # main(
     #     attack_free_in_path,
     #     attack_free_out_path,
@@ -197,5 +195,3 @@ if __name__ == "__main__":
     #     attack_free_column_names,
     #     dos_and_fuzzy_column_names,
     # )
-    # print("after running")
-    # show_memory_usage()
