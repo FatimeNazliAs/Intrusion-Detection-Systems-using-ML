@@ -1,5 +1,5 @@
 import polars as pl
-from utils import load_data_paths, load_datasets_with_pl
+from utils import load_data_paths, load_datasets,drop_columns
 
 
 def validate_column_in_dataframe(df, column_name):
@@ -265,12 +265,6 @@ def merge_multiple_dfs_bytes_to_message_column(
     return [merge_byte_columns(df, existing_column_name, new_column_name) for df in dfs]
 
 
-def load_datasets(dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path):
-
-    dos_df = pl.read_csv(dos_df_out_path)
-    fuzzy_df = pl.read_csv(fuzzy_df_out_path)
-    attack_free_df = pl.read_csv(attack_free_csv_out_path)
-    return dos_df, fuzzy_df, attack_free_df
 
 
 def convert_data_types(dfs):
@@ -352,27 +346,6 @@ def add_features(dfs):
     return dos_df, fuzzy_df, attack_free_df
 
 
-def drop_column(df, column_to_delete):
-    return df.drop(column_to_delete)
-
-
-def drop_multiple_columns(df, columns_to_delete):
-    """
-    Drop multiple columns from DataFrame
-
-    Parameters
-    ----------
-    df : pl.DataFrame
-        The input DataFrame to which the columns_to_delete will be deleted.
-
-    Returns
-    -------
-    pl.DataFrame
-        DataFrame with newly deleted columns.
-    """
-    return df.drop(columns_to_delete)
-
-
 def drop_multiple_dfs_multiple_columns(dfs, columns_to_delete):
     """_summary_
 
@@ -388,7 +361,7 @@ def drop_multiple_dfs_multiple_columns(dfs, columns_to_delete):
     list
         List of updated DataFrame.
     """
-    return [drop_multiple_columns(df, columns_to_delete) for df in dfs]
+    return [drop_columns(df, columns_to_delete) for df in dfs]
 
 
 def get_byte_column_names(dfs, dlc_column):
@@ -416,8 +389,9 @@ def drop_features(dfs):
     dos_df, fuzzy_df, attack_free_df = dfs
 
     byte_columns = get_byte_column_names(dfs, existing_dlc_column_name)
-    columns_to_delete = ["timestamp", "canId"] + byte_columns
-    attack_free_df = drop_column(attack_free_df, existing_frame_type_column_name)
+    columns_to_delete = ["canId"] + byte_columns
+    attack_free_df = drop_columns(attack_free_df, 
+                                [existing_frame_type_column_name])
     return drop_multiple_dfs_multiple_columns(
         [dos_df, fuzzy_df, attack_free_df], columns_to_delete
     )
@@ -519,7 +493,7 @@ if __name__ == "__main__":
         "out_paths"
     )
     print("Loading datasets.")
-    dos_df, fuzzy_df, attack_free_df = load_datasets_with_pl()
+    dos_df, fuzzy_df, attack_free_df = load_datasets("out_paths")
 
     print("Converting data types.")
     converted_data_types_dfs = convert_data_types([dos_df, fuzzy_df, attack_free_df])
@@ -533,7 +507,7 @@ if __name__ == "__main__":
     )
     max_dlc_number = max([df["dlc"].max() for df in [dos_df, fuzzy_df, attack_free_df]])
     specific_order = (
-        ["updatedCanId", "datetime", "dlc"]
+        ["updatedCanId","timestamp",  "datetime", "dlc"]
         + [f"updatedByte{i}" for i in range(max_dlc_number)]
         + ["updatedFlag"]
     )
