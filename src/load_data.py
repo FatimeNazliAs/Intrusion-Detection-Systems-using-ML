@@ -235,10 +235,6 @@ def set_new_flag_for_max_dlc(
     )
 
 
-def drop_column(df, column_name):
-    return df.drop(column_name)
-
-
 def update_dlc_flag_association(
     df,
     existing_dlc_column_name,
@@ -280,7 +276,7 @@ def update_dlc_flag_association(
         existing_flag_column_name,
         new_flag_column_name,
     )
-    df = drop_column(df, existing_flag_column_name)
+    df = df.drop(existing_flag_column_name)
     return df
 
 
@@ -294,12 +290,15 @@ def process_csv(
     new_flag_column_name,
 ):
     """
-    Processes a CSV file by applying transformations and saving the output.
+    Processes a CSV file by transforming and saving it to a specified output path.
 
-    This function checks if the output file already exists. If it doesn't, it:
-    1. Renames the columns of the input DataFrame.
-    2. Updates the DataFrame with a new flag association based on existing columns.
-    3. Saves the processed DataFrame to the specified output path.
+    This function checks if the output file already exists:
+    - If the file exists, it returns the DataFrame from the existing CSV.
+    - If the file does not exist, it performs the following steps:
+        1. Renames the columns of the input DataFrame based on the provided `column_names`.
+        2. Updates the DataFrame by associating the new flag column with the values from the existing columns (`existing_dlc_column_name` and `existing_flag_column_name`).
+        3. Saves the processed DataFrame to the specified output file path.
+
 
     Parameters
     ----------
@@ -323,7 +322,11 @@ def process_csv(
     pandas.DataFrame
         The processed DataFrame.
     """
-    if check_file_exists(df_out_path) is False:
+
+    if check_file_exists(df_out_path):
+        return pl.read_csv(df_out_path)
+
+    else:
         print(f"Processing {df_name} CSV...")
         df = set_column_names(column_names, df_in_path)
         df = update_dlc_flag_association(
@@ -341,10 +344,13 @@ def process_txt(df_name, df_out_path, column_names, df_in_path):
     """
     Processes a TXT file by converting it to a CSV file and saving the output.
 
-    This function checks if the output file already exists. If it doesn't, it:
-    1. Converts the content of the TXT file into a list.
-    2. Converts the list into a CSV format with the specified column names.
-    3. Saves the processed DataFrame to the specified output path.
+    This function checks if the output file already exists:
+    - If the output file exists, it returns the DataFrame from the existing CSV.
+    - If the file doesn't exist, it performs the following steps:
+        1. Converts the content of the input TXT file into a list.
+        2. Converts the list into a DataFrame with the specified column names.
+        3. Saves the processed DataFrame as a CSV file to the specified output path.
+
 
     Parameters
     ----------
@@ -362,27 +368,28 @@ def process_txt(df_name, df_out_path, column_names, df_in_path):
     pandas.DataFrame
         The processed DataFrame.
     """
-    if check_file_exists(df_out_path) is False:
+    if check_file_exists(df_out_path):
+        return pl.read_csv(df_out_path)
+    else:
         print(f"Processing {df_name} txt...")
-        txt_to_list_start = time.time()
         data_list = convert_attack_free_txt_to_list(df_in_path)
-        txt_to_list_end = time.time()
-        # print("attack_free_txt_to_list", txt_to_list_end-txt_to_list_start)
-        list_to_csv_start = time.time()
         df = convert_list_to_csv(data_list, df_out_path, column_names)
-        list_to_csv_end = time.time()
-        # print("attack_free_list_to_csv", list_to_csv_end-list_to_csv_start)
         print(f"{df_name} txt is saved to output folder!")
         return df
 
 
-if __name__ == "__main__":
-    dos_df_in_path, fuzzy_df_in_path, attack_free_in_path = load_data_paths(
-        "in_paths"
+def stratified_sample_by_group(df, groupby_column_name, frac):
+    return df.groupby(groupby_column_name, group_keys=False).apply(
+        lambda x: x.sample(frac=frac)
     )
 
-    dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path = (
-        load_data_paths("out_paths")
+
+
+if __name__ == "__main__":
+    dos_df_in_path, fuzzy_df_in_path, attack_free_in_path = load_data_paths("in_paths")
+
+    dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path = load_data_paths(
+        "out_paths"
     )
 
     attack_free_column_names = ["timestamp", "canId", "frameType", "dlc"] + [
@@ -395,8 +402,6 @@ if __name__ == "__main__":
     existing_dlc_column_name = "dlc"
     existing_flag_column_name = "flag"
     new_flag_column_name = "updatedFlag"
-
-    print("Starting DataFrame processing...")
 
     dos_df = process_csv(
         "DoS",
@@ -422,3 +427,12 @@ if __name__ == "__main__":
         attack_free_column_names,
         attack_free_in_path,
     )
+    dos_df = dos_df.to_pandas()
+    fuzy_df = fuzy_df.to_pandas()
+    attack_free_df = attack_free_df.to_pandas()
+    print(dos_df[new_flag_column_name].value_counts(normalize=True))
+    print(dos_df.shape)
+    dos_df_sample = stratified_sample_by_group(dos_df, new_flag_column_name, 0.01)
+
+    print(dos_df_sample[new_flag_column_name].value_counts(normalize=True))
+    print(dos_df_sample.shape)
