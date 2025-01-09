@@ -43,7 +43,7 @@ def set_column_names(column_names, df_path):
     return df
 
 
-def save_df_to_output_folder(df, df_out_path):
+def save_pl_df_to_output_folder(df, df_out_path):
     """
     Save DataFrame to a specified output folder
 
@@ -57,6 +57,24 @@ def save_df_to_output_folder(df, df_out_path):
     """
     try:
         df.write_csv(df_out_path)
+    except Exception as e:
+        print(f"Failed to save DataFrame to {df_out_path}: {e}")
+
+
+def save_pd_df_to_output_folder(df, df_out_path):
+    """
+    Save DataFrame to a specified output folder
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to be saved
+
+    df_out_path :str
+        Path to save the DataFrame
+    """
+    try:
+        df.to_csv(df_out_path)
     except Exception as e:
         print(f"Failed to save DataFrame to {df_out_path}: {e}")
 
@@ -335,7 +353,7 @@ def process_csv(
             existing_flag_column_name,
             new_flag_column_name,
         )
-        save_df_to_output_folder(df, df_out_path)
+        save_pl_df_to_output_folder(df, df_out_path)
         print(f"{df_name} CSV is saved to output folder!")
         return df
 
@@ -384,11 +402,29 @@ def stratified_sample_by_group(df, groupby_column_name, frac):
     )
 
 
+def convert_polars_dfs_to_pandas(dfs):
+    return [df.to_pandas() for df in dfs]
+
+
+def sample_dfs(dfs, stratified_frac, random_numbers):
+    dos_df, fuzy_df, attack_free_df = convert_polars_dfs_to_pandas(dfs)
+
+    dos_df_sample = stratified_sample_by_group(
+        dos_df, new_flag_column_name, stratified_frac
+    )
+
+    fuzzy_df_sample = stratified_sample_by_group(
+        fuzy_df, new_flag_column_name, stratified_frac
+    )
+
+    attack_free_df_sample = attack_free_df.sample(n=random_numbers)
+    return dos_df_sample, fuzzy_df_sample, attack_free_df_sample
+
 
 if __name__ == "__main__":
     dos_df_in_path, fuzzy_df_in_path, attack_free_in_path = load_data_paths("in_paths")
 
-    dos_df_out_path, fuzzy_df_out_path, attack_free_csv_out_path = load_data_paths(
+    dos_df_out_path, fuzzy_df_out_path, attack_free_df_out_path = load_data_paths(
         "out_paths"
     )
 
@@ -423,16 +459,20 @@ if __name__ == "__main__":
     )
     attack_free_df = process_txt(
         "Attack Free",
-        attack_free_csv_out_path,
+        attack_free_df_out_path,
         attack_free_column_names,
         attack_free_in_path,
     )
-    dos_df = dos_df.to_pandas()
-    fuzy_df = fuzy_df.to_pandas()
-    attack_free_df = attack_free_df.to_pandas()
-    print(dos_df[new_flag_column_name].value_counts(normalize=True))
-    print(dos_df.shape)
-    dos_df_sample = stratified_sample_by_group(dos_df, new_flag_column_name, 0.01)
-
-    print(dos_df_sample[new_flag_column_name].value_counts(normalize=True))
+    stratified_frac = 0.1
+    random_numbers = 35000
+    dos_df_sample, fuzzy_df_sample, attack_free_df_sample = sample_dfs(
+        [dos_df, fuzy_df, attack_free_df], stratified_frac, random_numbers
+    )
+    print(dos_df_sample[new_flag_column_name].value_counts())
+    print(fuzzy_df_sample[new_flag_column_name].value_counts())
     print(dos_df_sample.shape)
+    print(fuzzy_df_sample.shape)
+
+    save_pd_df_to_output_folder(dos_df_sample, dos_df_out_path)
+    save_pd_df_to_output_folder(fuzzy_df_sample, fuzzy_df_out_path)
+    save_pd_df_to_output_folder(attack_free_df_sample, attack_free_df_out_path)
