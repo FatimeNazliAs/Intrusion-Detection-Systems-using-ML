@@ -20,14 +20,18 @@ Intrusion-Detection-Systems-using-ML/
 │   ├── attack_free_df.csv
 │   ├── dos_df.csv
 │   ├── fuzzy_df.csv
-├── notebooks/               # Jupyter notebooks for testing and analysis
-│   ├── exploration.ipynb    # Exploratory data analysis using Pandas
-│   ├── manipulation.ipynb   # Data manipulation and feature engineering
-│   ├── fix_data_issue.ipynb # Solving data issues with Polars
-├── src/                     # Final Python scripts for processing data
-│   ├── get_data_pandas.py   # Dataset loading with Pandas
-│   ├── get_data_polars.py   # Optimized dataset loading with Polars
-│   ├── do_manipulation.py   # Data manipulation functions
+├── notebooks/                   # Jupyter notebooks for testing and analysis
+│   ├── eda.ipynb                # Exploratory data analysis using Pandas
+│   ├── preprocess_data.ipynb    # Data manipulation and feature engineering
+│   ├── fix_data_issue.ipynb     # Solving misplaced dlc-flag column issue 
+│   ├── visualize_data.ipynb     # Data visualization with graphics
+│   ├── utils.ipynb              # Some helper functions
+├── src/                         # Final Python scripts for processing data
+│   ├── get_data_pandas.py       # Dataset loading with Pandas
+│   ├── load_data.py             # Optimized dataset loading with Polars
+│   ├── preprocess_data.py       # Data manipulation functions
+│   ├── train_model.py           # Data modelling
+│   ├── utils.py                 # Helper Functions
 ├── README.md                # Project documentation (you're reading this)
 ```
 
@@ -58,16 +62,14 @@ Processed datasets are saved in the `output` folder as:
 3. Run preprocessing scripts:
    Use the src scripts to generate processed datasets:
    ```bash
-   python src/get_data_polars.py
-4. Explore and manipulate data:
-  Open the Jupyter notebooks for data exploration and manipulation:
-   ```bash
-   jupyter notebook
+   python src/load_data.py
+
    
 ## 📝 Usage
-- **Exploration**: Use notebooks/exploration.ipynb to explore datasets.
-- **Manipulation**: Modify datasets using notebooks/manipulation.ipynb or src/do_manipulation.py.
-- **Preprocessing**: Process large datasets with optimized Polars methods in src/get_data_polars.py.
+- **Load data**: Process large datasets with optimized Polars methods in src/load_data.py.
+- **Exploration**: Use notebooks/eda.ipynb to explore datasets.
+- **Manipulation**: Modify datasets using notebooks/preprocess_data.ipynb or src/preprocess_data.py.
+- **Visualization**: Visualize datasets using notebooks/visualize_data.ipynb
   
 ## 🤝 Contributions
 Contributions are welcome! Please fork the repository, make your changes, and submit a pull request.
