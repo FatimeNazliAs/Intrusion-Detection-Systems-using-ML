@@ -1,82 +1,31 @@
+"""
+    Workflow of load data
+    1. datasets in input folder are uploaded
+    2. dos and fuzzy attacks are in csv format
+    3. attack free is in txt format
+    4. process_csv() method is used for dos and fuzzy.
+        1. it checks whether csv file exists in output folder
+            1. if not
+                1. set column names
+                2. fix dlc- flag issue (update_dlc_flag_association())
+                3. save updated pl df into output folder
+    5. process_txt method is used for attack free df.
+        1. it checks whether csv file exists in output folder
+            1. if not
+                1. convert txt file to list format by deleting column names from each line in txt
+                2. convert list to csv
+                3. save updated pl df into output folder
+"""
+
+
 import polars as pl
-import os
 import pandas as pd
-import time
-from utils import load_data_paths
-
-
-def check_file_exists(file_path):
-    """
-    Check if a file exists at the given path.
-
-    Parameters
-    ----------
-    file_path : str
-        Path to the file.
-
-    Returns
-    -------
-    Boolean
-        True if the file exists, False otherwise.
-    """
-    return os.path.isfile(file_path)
-
-
-def set_column_names(column_names, df_path):
-    """
-    Set column names for a DataFrame read from a CSV file.
-
-    Parameters
-    ----------
-    column_names list of str
-        List of column names.
-    df_path : str
-        Path to csv file.
-
-    Returns
-    -------
-    pl.DataFrame
-        DataFrame with updated column names.
-    """
-    df = pl.read_csv(df_path)
-    df.columns = column_names
-    return df
-
-
-def save_pl_df_to_output_folder(df, df_out_path):
-    """
-    Save DataFrame to a specified output folder
-
-    Parameters
-    ----------
-    df : pl.DataFrame
-        DataFrame to be saved
-
-    df_out_path :str
-        Path to save the DataFrame
-    """
-    try:
-        df.write_csv(df_out_path)
-    except Exception as e:
-        print(f"Failed to save DataFrame to {df_out_path}: {e}")
-
-
-def save_pd_df_to_output_folder(df, df_out_path):
-    """
-    Save DataFrame to a specified output folder
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame to be saved
-
-    df_out_path :str
-        Path to save the DataFrame
-    """
-    try:
-        df.to_csv(df_out_path)
-    except Exception as e:
-        print(f"Failed to save DataFrame to {df_out_path}: {e}")
+from utils import (
+    load_data_paths,
+    check_file_exists,
+    set_column_names,
+    save_pl_df_to_csv,
+)
 
 
 def convert_attack_free_txt_to_list(input_file):
@@ -167,21 +116,21 @@ def set_new_flag_for_non_max_dlc(
         pl.when(pl.col("dlc") != max_dlc_value)
         .then(
             pl.when(pl.col(existing_dlc_column_name) == 0)
-            .then(pl.col("byte0"))
+            .then(pl.col("byte_0"))
             .when(pl.col(existing_dlc_column_name) == 1)
-            .then(pl.col("byte1"))
+            .then(pl.col("byte_1"))
             .when(pl.col(existing_dlc_column_name) == 2)
-            .then(pl.col("byte2"))
+            .then(pl.col("byte_2"))
             .when(pl.col(existing_dlc_column_name) == 3)
-            .then(pl.col("byte3"))
+            .then(pl.col("byte_3"))
             .when(pl.col(existing_dlc_column_name) == 4)
-            .then(pl.col("byte4"))
+            .then(pl.col("byte_4"))
             .when(pl.col(existing_dlc_column_name) == 5)
-            .then(pl.col("byte5"))
+            .then(pl.col("byte_5"))
             .when(pl.col(existing_dlc_column_name) == 6)
-            .then(pl.col("byte6"))
+            .then(pl.col("byte_6"))
             .when(pl.col(existing_dlc_column_name) == 7)
-            .then(pl.col("byte7"))
+            .then(pl.col("byte_7"))
             .otherwise(None)
         )
         .alias(new_flag_column_name)
@@ -209,8 +158,8 @@ def set_byte_to_null_if_byte_contains_flag(df, existing_dlc_column_name):
         [
             pl.when(pl.col(existing_dlc_column_name) == i)
             .then(None)  # Set to null if dlc matches the byte column
-            .otherwise(pl.col(f"byte{i}"))  # Keep the original value otherwise
-            .alias(f"byte{i}")
+            .otherwise(pl.col(f"byte_{i}"))  # Keep the original value otherwise
+            .alias(f"byte_{i}")
             for i in range(df[existing_dlc_column_name].max())  # Update the byte column
         ]
     )
@@ -353,7 +302,7 @@ def process_csv(
             existing_flag_column_name,
             new_flag_column_name,
         )
-        save_pl_df_to_output_folder(df, df_out_path)
+        save_pl_df_to_csv(df, df_out_path)
         print(f"{df_name} CSV is saved to output folder!")
         return df
 
@@ -396,48 +345,124 @@ def process_txt(df_name, df_out_path, column_names, df_in_path):
         return df
 
 
-def stratified_sample_by_group(df, groupby_column_name, frac):
-    return df.groupby(groupby_column_name, group_keys=False).apply(
-        lambda x: x.sample(frac=frac)
+def sample_disproportionately_by_group(df, group_column, sample_size):
+    """
+    Perform stratified sampling from a DataFrame, selecting a fixed number of samples
+    disproportionately from each group defined by a specified column.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The input DataFrame to sample from.
+    group_column : str
+        The column name used to group the DataFrame for stratified sampling.
+    sample_size : int
+        The number of samples to draw from each group.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A DataFrame containing the sampled rows from each group.
+
+    """
+    return df.groupby(group_column, group_keys=False).apply(
+        lambda x: x.sample(sample_size)
     )
 
 
 def convert_polars_dfs_to_pandas(dfs):
+    """
+    Convert a list of Polars DataFrames to Pandas DataFrames.
+
+    Parameters
+    ----------
+    dfs : list of polars.DataFrame
+        A list of Polars DataFrames to be converted.
+
+    Returns
+    -------
+    list of pandas.DataFrame
+        A list of DataFrames converted to Pandas format.
+    """
     return [df.to_pandas() for df in dfs]
 
 
-def sample_dfs(dfs, stratified_frac, random_numbers):
+def sample_dfs(dfs, group_by_column_name, stratified_sample_size, random_sample_size):
+    """
+    Perform sampling operations on multiple DataFrames.
+
+    Parameters
+    ----------
+    dfs : list of polars.DataFrame
+        A list of Polars DataFrames to be sampled.
+    group_by_column_name : str
+        The column name used for grouping during stratified sampling.
+    stratified_sample_size : int
+        The number of samples to draw from each group in the stratified sampling.
+    random_sample_size : int
+        The number of random samples to draw from the third DataFrame.
+
+    Returns
+    -------
+    tuple of pandas.DataFrame
+        A tuple containing the sampled DataFrames:
+        - dos_df_sample (pandas.DataFrame): Stratified sampled DataFrame from `dos_df`.
+        - fuzzy_df_sample (pandas.DataFrame): Stratified sampled DataFrame from `fuzzy_df`.
+        - attack_free_df_sample (pandas.DataFrame): Randomly sampled DataFrame from `attack_free_df`.
+
+    """
     dos_df, fuzy_df, attack_free_df = convert_polars_dfs_to_pandas(dfs)
 
-    dos_df_sample = stratified_sample_by_group(
-        dos_df, new_flag_column_name, stratified_frac
-    )
+    dos_df_sample = dos_df
+    fuzzy_df_sample = fuzy_df
+    attack_free_df_sample = attack_free_df
 
-    fuzzy_df_sample = stratified_sample_by_group(
-        fuzy_df, new_flag_column_name, stratified_frac
-    )
+    if len(dos_df) != stratified_sample_size:
+        dos_df_sample = sample_disproportionately_by_group(
+            dos_df, group_by_column_name, stratified_sample_size
+        )
+    if len(fuzy_df) != stratified_sample_size:
+        fuzzy_df_sample = sample_disproportionately_by_group(
+            fuzy_df, group_by_column_name, stratified_sample_size
+        )
 
-    attack_free_df_sample = attack_free_df.sample(n=random_numbers)
+    if len(attack_free_df) != random_sample_size:
+        attack_free_df_sample = attack_free_df.sample(n=random_sample_size)
+
     return dos_df_sample, fuzzy_df_sample, attack_free_df_sample
 
 
 if __name__ == "__main__":
-    dos_df_in_path, fuzzy_df_in_path, attack_free_in_path = load_data_paths("in_paths")
 
-    dos_df_out_path, fuzzy_df_out_path, attack_free_df_out_path = load_data_paths(
-        "out_paths"
-    )
+    input_data_paths = load_data_paths("in_paths")
+    dos_df_in_path = input_data_paths["dos_df"]
+    fuzzy_df_in_path = input_data_paths["fuzzy_df"]
+    attack_free_in_path = input_data_paths["attack_free_df"]
 
-    attack_free_column_names = ["timestamp", "canId", "frameType", "dlc"] + [
-        f"byte{i}" for i in range(8)
-    ]
+    output_data_paths = load_data_paths("out_paths")
+
+    dos_df_out_path = output_data_paths["dos_df"]
+    fuzzy_df_out_path = output_data_paths["fuzzy_df"]
+    attack_free_df_out_path = output_data_paths["attack_free_df"]
+
+    # dos_and_fuzzy_column_names = (
+    #     ["timestamp", "canId", "dlc"] + [f"byte{i}" for i in range(8)] + ["flag"]
+    # )
+    # attack_free_column_names = ["timestamp", "canId", "frameType", "dlc"] + [
+    #     f"byte{i}" for i in range(8)
+    # ]
 
     dos_and_fuzzy_column_names = (
-        ["timestamp", "canId", "dlc"] + [f"byte{i}" for i in range(8)] + ["flag"]
+        ["timestamp", "can_id", "dlc"] + [f"byte_{i}" for i in range(8)] + ["flag"]
     )
+
+    attack_free_column_names = ["timestamp", "can_id", "frame_type", "dlc"] + [
+        f"byte_{i}" for i in range(8)
+    ]
+
     existing_dlc_column_name = "dlc"
     existing_flag_column_name = "flag"
-    new_flag_column_name = "updatedFlag"
+    new_flag_column_name = "updated_flag"
 
     dos_df = process_csv(
         "DoS",
@@ -463,16 +488,12 @@ if __name__ == "__main__":
         attack_free_column_names,
         attack_free_in_path,
     )
-    stratified_frac = 0.1
-    random_numbers = 35000
-    dos_df_sample, fuzzy_df_sample, attack_free_df_sample = sample_dfs(
-        [dos_df, fuzy_df, attack_free_df], stratified_frac, random_numbers
-    )
-    print(dos_df_sample[new_flag_column_name].value_counts())
-    print(fuzzy_df_sample[new_flag_column_name].value_counts())
-    print(dos_df_sample.shape)
-    print(fuzzy_df_sample.shape)
+    stratified_sample_size = 20000
+    random_sample_size = 20000
 
-    save_pd_df_to_output_folder(dos_df_sample, dos_df_out_path)
-    save_pd_df_to_output_folder(fuzzy_df_sample, fuzzy_df_out_path)
-    save_pd_df_to_output_folder(attack_free_df_sample, attack_free_df_out_path)
+    save_pl_df_to_csv(dos_df, dos_df_out_path)
+    save_pl_df_to_csv(fuzy_df, fuzzy_df_out_path)
+    save_pl_df_to_csv(attack_free_df, attack_free_df_out_path)
+    print(dos_df.shape)
+    print(fuzy_df.shape)
+    print(attack_free_df.shape)
