@@ -23,17 +23,18 @@ Intrusion-Detection-Systems-using-ML/
 ├── notebooks/                   # Jupyter notebooks for testing and analysis
 │   ├── eda.ipynb                # Exploratory data analysis using Pandas
 │   ├── preprocess_data.ipynb    # Data manipulation and feature engineering
-│   ├── fix_data_issue.ipynb     # Solving misplaced dlc-flag column issue 
+│   ├── solve_dlc_flag_issue.ipynb     # Solving misplaced dlc-flag column issue 
 │   ├── visualize_data.ipynb     # Data visualization with graphics
 │   ├── utils.ipynb              # Some helper functions
 ├── src/                         # Final Python scripts for processing data
-│   ├── get_data_pandas.py       # Dataset loading with Pandas
-│   ├── load_data.py             # Optimized dataset loading with Polars
-│   ├── preprocess_data.py       # Data manipulation functions
+│   ├── load_data_with_pandas.py             # Dataset loading with Pandas (I do not use it officialy because it takes long time!)
+│   ├── load_data_with_polars.py             # Optimized dataset loading with Polars (I use this one right now for loading proper data to output folder by using folders in input folder)                             │   ├── preprocess_data_with_polars.py  # Data manipulation functions (I used it before, but polars is not as simple as pandas)
+│   ├── preprocess_data_with_pandas.py  # Data manipulation functions (I use this one right now, I did sampling at the begining, that's why it does not take too much time and simple library)
 │   ├── train_model.py           # Data modelling
 │   ├── utils.py                 # Helper Functions
 ├── README.md                # Project documentation (you're reading this)
-```
+```      
+
 
 ## 📊 Datasets  
 The raw datasets are taken from the **Car Hacking Dataset**, which contains records for intrusion detection, such as:  
