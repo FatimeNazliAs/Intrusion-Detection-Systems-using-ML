@@ -11,6 +11,10 @@ This project focuses on building an **Intrusion Detection System (IDS)** using m
 - **Modular Design**: Shared utility functions for easier maintenance and reusability.  
 
 ## 📂 Repository Structure  
+- **notebooks**: Used for exploratory data analysis, visualization, and prototyping. You can find scripts here to test and experiment with the data before finalizing the methods.
+  
+- **src**: Contains the finalized Python scripts that implement the core functionality of the project. After testing and refining methods in the notebooks, the final code is written into these files for consistent and optimized execution.
+
 ```plaintext
 Intrusion-Detection-Systems-using-ML/
 ├── input/                       # Raw dataset files from Car Hacking Dataset
