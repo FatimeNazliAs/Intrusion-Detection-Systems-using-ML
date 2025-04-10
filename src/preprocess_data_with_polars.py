@@ -343,24 +343,6 @@ def add_features(dfs):
     return dos_df, fuzzy_df, attack_free_df
 
 
-def drop_multiple_dfs_multiple_columns(dfs, columns_to_delete):
-    """_summary_
-
-    Drop multiple columns from multiple DataFrames.
-    ----------
-    dfs : list
-        List of DataFrame.
-    columns_to_delete : list
-        Column names that will be deleted.
-
-    Returns
-    -------
-    list
-        List of updated DataFrame.
-    """
-    return [drop_columns(df, columns_to_delete, "polars") for df in dfs]
-
-
 def get_byte_column_names(dfs, dlc_column):
     """Get column list of byte columns from byte_0 to byte_7.
 
@@ -384,29 +366,23 @@ def get_byte_column_names(dfs, dlc_column):
 
 def drop_features(dfs):
     """
-    Drop features that are no longer needed such as timestamp, can_id,
-    byte_0 to byte_7 columns because they are converted into different formats.
+    Drops specific features from the attack_free_df in the dataset list.
 
     Parameters
     ----------
-    dfs : List
-        List of DataFrame
+    dfs : list
+        A list containing three DataFrames in the following order:
+        [dos_df, fuzzy_df, attack_free_df].
 
     Returns
     -------
-    List
-        List of updated DataFrame
+    list
+        A list of updated DataFrames with 'frame_type' column removed from attack_free_df.
     """
-    existing_dlc_column_name = "dlc"
-    existing_frame_type_column_name = "frame_type"
     dos_df, fuzzy_df, attack_free_df = dfs
-
-    byte_columns = get_byte_column_names(dfs, existing_dlc_column_name)
-    columns_to_delete = ["can_id"] + byte_columns
-    attack_free_df = drop_columns(attack_free_df, [existing_frame_type_column_name])
-    return drop_multiple_dfs_multiple_columns(
-        [dos_df, fuzzy_df, attack_free_df], columns_to_delete
-    )
+    columns_to_delete = ["frame_type"]
+    attack_free_df = drop_columns(attack_free_df, columns_to_delete, backend="polars")
+    return [dos_df, fuzzy_df, attack_free_df]
 
 
 def swap_features_in_specific_order(dfs, specific_order):
@@ -517,25 +493,26 @@ if __name__ == "__main__":
     dos_df, fuzzy_df, attack_free_df = add_features(converted_data_types_dfs)
 
     print("Dropping unused features!")
-    # dos_df, fuzzy_df, attack_free_df = drop_features([dos_df, fuzzy_df, attack_free_df])
+    dos_df, fuzzy_df, attack_free_df = drop_features([dos_df, fuzzy_df, attack_free_df])
     max_dlc_number = max([df["dlc"].max() for df in [dos_df, fuzzy_df, attack_free_df]])
     specific_order = (
         ["can_id", "timestamp", "datetime", "dlc"]
         + [f"byte_{i}" for i in range(max_dlc_number)]
-        + ["updated_flag"])
+        + ["updated_flag"]
+    )
 
     print("Swapping feature orders.")
     dos_df, fuzzy_df, attack_free_df = swap_features_in_specific_order(
         [dos_df, fuzzy_df, attack_free_df],
         specific_order,
     )
-    print("Encoding features.")
+
+    # print("Encoding features.")
     dos_df, fuzzy_df, attack_free_df = encode_features(
         [dos_df, fuzzy_df, attack_free_df]
     )
-    print(attack_free_df.head())
 
-    save_df_to_csv(dos_df, dos_df_out_path, backend="polars")
-    save_df_to_csv(fuzzy_df, fuzzy_df_out_path, backend="polars")
-    save_df_to_csv(attack_free_df, attack_free_df_out_path, backend="polars")
-    print("DataFrame Preprocessing Completed and Saved into Output Folder!")
+    # save_df_to_csv(dos_df, dos_df_out_path, backend="polars")
+    # save_df_to_csv(fuzzy_df, fuzzy_df_out_path, backend="polars")
+    # save_df_to_csv(attack_free_df, attack_free_df_out_path, backend="polars")
+    # print("DataFrame Preprocessing Completed and Saved into Output Folder!")
