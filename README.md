@@ -11,9 +11,9 @@ This project focuses on building an **Intrusion Detection System (IDS)** using m
 - **Modular Design**: Shared utility functions for easier maintenance and reusability.  
 
 ## 📂 Repository Structure  
-- **notebooks**: Used for exploratory data analysis, visualization, and prototyping. You can find scripts here to test and experiment with the data before finalizing the methods.
-  
+- **notebooks**: Used for exploratory data analysis, visualization, and prototyping. You can find scripts here to test and experiment with the data before finalizing the methods.  
 - **src**: Contains the finalized Python scripts that implement the core functionality of the project. After testing and refining methods in the notebooks, the final code is written into these files for consistent and optimized execution.
+- **notebooks/eda.ipynb**: This is the first exploration of the data, where no sampling or preprocessing has been done yet. The goal here is to learn from the raw data, understand its structure, detect any anomalies, and identify potential features for further analysis.
 
 ```plaintext
 Intrusion-Detection-Systems-using-ML/
@@ -25,20 +25,20 @@ Intrusion-Detection-Systems-using-ML/
 │   ├── attack_free_df.csv
 │   ├── dos_df.csv
 │   ├── fuzzy_df.csv
-├── notebooks/                  # Jupyter notebooks for analysis
-│   ├── eda.ipynb                # Exploratory data analysis using Pandas
-│   ├── preprocess_data.ipynb    # Data cleaning and transformation
-│   ├── solve_dlc_flag_issue.ipynb # Fixing misplaced DLC/flag column
-│   ├── visualize_data.ipynb     # Data visualization with charts
-│   ├── utils.ipynb              # Helper functions for notebooks
-├── src/                         # Python scripts for production-ready data processing
+├── notebooks/                           # Jupyter notebooks for analysis
+│   ├── eda.ipynb                        # Exploratory data analysis using Pandas
+│   ├── preprocess_data.ipynb            # Data cleaning and transformation
+│   ├── solve_dlc_flag_issue.ipynb       # Fixing misplaced DLC/flag column
+│   ├── visualize_data.ipynb             # Data visualization with charts
+│   ├── utils.ipynb                      # Helper functions for notebooks
+├── src/                                 # Python scripts for production-ready data processing
 │   ├── load_data_with_polars.py         # 🚀 Actively used: Efficient loading using Polars
 │   ├── preprocess_data_with_pandas.py   # ✅ Actively used: Sampling & cleaning using Pandas
 │   ├── utils.py                         # ✅ Actively used: Shared helper functions
 │   ├── load_data_with_pandas.py         # ⚠️ Not used (slow on large data, kept for reference)
 │   ├── preprocess_data_with_polars.py   # ⚠️ Not used (replaced with Pandas version)
 │   ├── train_model.py                   # ML model training (coming soon)
-├── README.md                  # Project documentation
+├── README.md                            # Project documentation
 
 ```
 ---
