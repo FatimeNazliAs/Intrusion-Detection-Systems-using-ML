@@ -15,6 +15,8 @@ STRATIFIED_ATTACK_FREE_FRACTION = 0.02
 STRATIFIED_ATTACK_FREE_INSIDE_DOS_FRACTION = 0.003
 STRATIFIED_ATTACK_FREE_INSIDE_FUZZY_FRACTION = 0.003
 SORTED_COLUMN_NAME = "timestamp"
+ATTACK_TYPE_COLUMN = "attack_type"
+UPDATED_FLAG_COLUMN = "updated_flag"
 # ──────────────────────────────────────────────────────────────
 
 
@@ -292,6 +294,53 @@ def sort_data(dfs_dict, sorted_column_name):
     return sorted_dfs_dict
 
 
+def insert_new_column(df, new_column_name):
+    """
+    Insert new column into a DataFrame, initializing with missing values(pd.NA)
+
+    Parameters
+    ----------
+    df :pd.DataFrame
+        The input DataFrame that new colum will be added.
+    new_column_name : str
+        The name of the new column to add to the DataFrame.
+
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with the new column added.
+    """
+    df[new_column_name] = pd.NA
+    return df
+
+
+def insert_columns(dfs_dict, updated_flag_column, attack_type_column):
+    """_summary_
+
+    Parameters
+    ----------
+    dfs_dict : _type_
+        _description_
+    updated_flag_column : _type_
+        _description_
+    attack_type_column : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    inserted_dfs_dict = {}
+    inserted_dfs_dict["attack_free_df"] = insert_new_column(
+        dfs_dict["attack_free_df"], updated_flag_column
+    )
+    for key, value in dfs_dict.items():
+        inserted_dfs_dict[key] = insert_new_column(dfs_dict[key], attack_type_column)
+    return inserted_dfs_dict
+
+
 def main():
     print("Loading data!")
     dfs_dict = load_data("out_paths", backend="pandas")
@@ -338,6 +387,11 @@ def main():
     print("Sorting data!")
     sorted_dfs_dict = sort_data(sampled_dfs_dict, SORTED_COLUMN_NAME)
     # print(sorted_dfs_dict["only_dos_df"].head())
+    inserted_dfs_dict = insert_columns(
+        sorted_dfs_dict, UPDATED_FLAG_COLUMN, ATTACK_TYPE_COLUMN
+    )
+    for key, data in inserted_dfs_dict.items():
+        print(key, len(data.columns))
 
 
 if __name__ == "__main__":
